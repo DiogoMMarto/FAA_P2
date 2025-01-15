@@ -1,8 +1,8 @@
 
+from copy import deepcopy
 from typing import Callable
 from sklearn.model_selection import GridSearchCV, train_test_split
 from sklearn.metrics import classification_report, roc_curve, auc , confusion_matrix
-from scikeras.wrappers import KerasClassifier
 from tensorflow.keras.preprocessing.text import Tokenizer
 from tensorflow.keras.preprocessing.sequence import pad_sequences
 from tensorflow.keras.models import Sequential
@@ -11,6 +11,7 @@ from tensorflow.keras.callbacks import EarlyStopping
 import tensorflow as tf
 import pandas as pd
 import numpy as np
+from sklearn.linear_model import LogisticRegression
 
 TEST_SPLIT = 0.2
 VAL_SPLIT = 0.1
@@ -19,30 +20,33 @@ def gen(param_grid: dict[str, list]):
         param , vals = param_grid.popitem()
         if len(param_grid) == 0:
             return [{param: val} for val in vals]
-        else:
-            p = gen(param_grid)
-            r = []
-            for val in vals:
-                _p = p.copy()
-                for d in _p:
-                    d[param] = val
-                r += _p
-            return r
+        p = gen(param_grid)
+        r = []
+        for val in vals:
+            _p = deepcopy(p)
+            for d in _p:
+                d[param] = val
+            r += _p
+        return r
         
-def model_pass(param_grid: dict[str, list], make_model: Callable ,X_train , y_train , X_test , y_test , i = 0):
+def model_pass(param_grid: dict[str, list], make_model: Callable ,X_train , y_train , X_test , y_test , i = 0 , train_func = None ):
         param_grid['name'] = f"Model{i}"
         model = make_model(**param_grid)
-        model , history = train_model(model, X_train, y_train)
+        if train_func:
+            model , history = train_func(model, X_train, y_train)
+        else:
+            model , history = train_model(model, X_train, y_train)
         metrics = evaluate_model(model, X_test, y_test , history)
+        model.name = param_grid['name']
         return model , metrics
     
-def grid_search(param_grid: dict[str, list], make_model, X_train , y_train , X_test , y_test):
+def grid_search(param_grid: dict[str, list], make_model, X_train , y_train , X_test , y_test , train_func = None ):
     r = []
     i = 0
     grid = gen(param_grid)
     print(f"Grid size: {len(grid)}")
     for params in grid:
-        model , metrics = model_pass(params, make_model , X_train , y_train , X_test , y_test , i)
+        model , metrics = model_pass(params, make_model , X_train , y_train , X_test , y_test , i , train_func)
         print(f"Model: {model.name}")
         print(f"Parameters: {params}")
         print(f"Metrics: {metrics}")
