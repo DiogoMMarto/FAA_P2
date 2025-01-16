@@ -1,5 +1,6 @@
 
 from copy import deepcopy
+import os
 from typing import Callable
 from sklearn.model_selection import GridSearchCV, train_test_split
 from sklearn.metrics import classification_report, roc_curve, auc , confusion_matrix
@@ -29,26 +30,33 @@ def gen(param_grid: dict[str, list]):
             r += _p
         return r
         
-def model_pass(param_grid: dict[str, list], make_model: Callable ,X_train , y_train , X_test , y_test , i = 0 , train_func = None ):
+def model_pass(param_grid: dict[str, list], make_model: Callable ,X_train , y_train , X_test , y_test , i = 0 , train_func = None ,load_dir = None ):
         param_grid['name'] = f"Model{i}"
         model = make_model(**param_grid)
-        if train_func:
-            model , history = train_func(model, X_train, y_train)
-        else:
-            model , history = train_model(model, X_train, y_train)
-        metrics = evaluate_model(model, X_test, y_test , history)
         model.name = param_grid['name']
+        if load_dir:
+            # walk dir 
+            model = tf.keras.models.load_model(f"{load_dir}/{model.name}.keras")
+            print(f"Loaded model: {model.name}")
+            history = []
+        else:
+            if train_func:
+                model , history = train_func(model, X_train, y_train)
+            else:
+                model , history = train_model(model, X_train, y_train)
+        metrics = evaluate_model(model, X_test, y_test , history)
         return model , metrics
     
-def grid_search(param_grid: dict[str, list], make_model, X_train , y_train , X_test , y_test , train_func = None ):
+def grid_search(param_grid: dict[str, list], make_model, X_train , y_train , X_test , y_test , train_func = None , load_dir = None):
     r = []
     i = 0
     grid = gen(param_grid)
     print(f"Grid size: {len(grid)}")
     for params in grid:
-        model , metrics = model_pass(params, make_model , X_train , y_train , X_test , y_test , i , train_func)
+        model , metrics = model_pass(params, make_model , X_train , y_train , X_test , y_test , i , train_func , load_dir)
         print(f"Model: {model.name}")
         print(f"Parameters: {params}")
+        print(model.count_params())
         print(f"Metrics: {metrics}")
         r.append((model, params, metrics))
         i += 1
