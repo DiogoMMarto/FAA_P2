@@ -53,12 +53,14 @@ def grid_search(param_grid: dict[str, list], make_model, X_train , y_train , X_t
     grid = gen(param_grid)
     print(f"Grid size: {len(grid)}")
     for params in grid:
-        model , metrics = model_pass(params, make_model , X_train , y_train , X_test , y_test , i , train_func , load_dir)
-        print(f"Model: {model.name}")
-        print(f"Parameters: {params}")
-        print(model.count_params())
-        print(f"Metrics: {metrics}")
-        r.append((model, params, metrics))
+        try:
+            model , metrics = model_pass(params, make_model , X_train , y_train , X_test , y_test , i , train_func , load_dir)
+            print(f"Model: {model.name}")
+            print(f"Parameters: {params}")
+            print(f"Metrics: {metrics}")
+            r.append((model, params, metrics))
+        except ValueError as e:
+            pass
         i += 1
     return r
 
